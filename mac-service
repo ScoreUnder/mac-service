@@ -67,7 +67,7 @@ sub print_services(\%;$) {
 	my @process_list;
 	my ($services, $list_short) = @_;
 	while (my ($short, $proc) = each %$services) {
-		if ($list_short) { next if $proc->name ~~ /^com\.apple\./; }
+		if ($list_short) { next if $proc->name ~~ /^com\.apple\.|^0x[0-9a-f]+\.anonymous/; }
 		my $short_formatted = $short;
 		push @process_list, [$short, $proc->pid, $proc->status, $proc->name];
 	}
