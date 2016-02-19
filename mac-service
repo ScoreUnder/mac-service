@@ -1,0 +1,190 @@
+#!/usr/bin/perl
+# vim: noet
+use strict;
+use warnings;
+use autodie;
+use feature 'fc';
+no if $] >= 5.017011, warnings => 'experimental::smartmatch';
+use List::Util 'max';
+
+# Colours
+my $c_rst = "\033[0m";
+my $c_red = "\033[91m";
+my $c_grn = "\033[92m";
+my $c_yel = "\033[93m";
+
+my $odd_rows_color = "\033[48;5;235m";
+my $even_rows_color = "\033[40m";
+
+sub launch_list() {
+	local $.;
+	my %ret;
+	open(my $lc, "-|", "launchctl list");
+	while (<$lc>) {
+		next if $. == 1;
+		chomp;
+		my ($pid, $status, $name) = split /\t/, $_, 3;
+		my $shortname = $name;
+		() while $shortname =~ s/\.(xpc|agent|user)*$//i;  # Tons of things end in xpc, agent, or user
+		$shortname =~ s/\.([0-9A-Fa-f\-]+)$/_$1/;  # Convert numeric/hex suffixes
+		$shortname =~ s/^.*\.//;  # Strip to the last field
+		if (exists $ret{$shortname}) {
+			$shortname .= '_2';
+			while (exists $ret{$shortname}) {
+				$shortname =~ s/_(\d+)$/"_".($1+1)/e;
+			}
+		}
+		$ret{$shortname} = LaunchdService->new($pid, $status, $name);
+	}
+	\%ret;
+}
+
+sub tabulate(@) {
+	# Get max length of each column
+	my ($first, @rest) = @_;
+	my @lens = map length, @$first;
+	for my $row (@rest) {
+		for my $i (0..$#lens) {
+			$lens[$i] = max(length $row->[$i], $lens[$i]);
+		}
+	}
+	# Offset those lengths by 4, except the last
+	@lens[0 .. $#lens - 1] = map { $_ + 4 } @lens[0 .. $#lens - 1];
+	# Print, tabulated, with those lengths
+	my $odd = 1;
+	for my $row (@_) {
+		print $odd ? $odd_rows_color : $even_rows_color;
+		$odd = !$odd;
+		for my $i (0..$#lens) {
+			printf "%-$lens[$i]s", $row->[$i];
+		}
+		print "$c_rst\n";
+	}
+}
+
+sub print_services(\%;$) {
+	my $header = ["Short name", "PID", "Last exit code", "Real name"];
+	my @process_list;
+	my ($services, $list_short) = @_;
+	while (my ($short, $proc) = each %$services) {
+		if ($list_short) { next if $proc->name ~~ /^com\.apple\./; }
+		my $short_formatted = $short;
+		push @process_list, [$short, $proc->pid, $proc->status, $proc->name];
+	}
+	tabulate $header, sort { fc($a->[0]) cmp fc($b->[0]) } @process_list;
+}
+
+sub shellquote($) {
+	$_ = $_[0];
+	s/'/'\\''/g;
+	$_ = "'$_'";
+}
+
+sub find_service(\%$) {
+	my ($services, $service) = @_;
+	if (exists $services->{$service}) {
+		return $services->{$service};
+	}
+	my @candidates = grep {$_->name eq $service} values %$services;
+	if (@candidates) {
+		return $candidates[0];
+	}
+	die qq(Can't find a service with the name "$service");
+}
+
+my $services = launch_list;
+if (scalar @ARGV == 1 && $ARGV[0] ~~ /^list(-all)?$/) {
+	print_services %$services, !$1;
+	exit 0;
+}
+
+if (scalar @ARGV != 2) {
+	die q(Please pass a service name and an action (start, stop, restart, status).
+Alternatively, invoke with "list" or "list-all" to show available services.
+Remember you'll get different results if you run as root.);
+}
+
+my ($service_name, $action) = @ARGV;
+my $service = find_service(%$services, $service_name);
+$service_name = $service->name;  # Get the canonical name
+
+if ($action eq "start") {
+	exit !$service->start;
+} elsif ($action eq "stop") {
+	exit !$service->stop;
+} elsif ($action eq "restart") {
+	exit !$service->restart;
+} elsif ($action eq "status") {
+	if ($service->is_running) {
+		printf "%s is %salive%s.\n", $service_name, $c_grn, $c_rst;
+		exit 0;
+	} else {
+		printf "%s is %sdead%s. Last exit code was %s.\n", $service_name, $c_red, $c_rst, $service->status;
+		exit 1;
+	}
+} else {
+	die qq(Unknown action "$action");
+}
+
+package LaunchdService;
+use Time::HiRes qw/usleep time/;
+sub new($$$$) {my $class = shift; bless [@_], $class}
+sub pid($) {shift->[0]}
+sub status($) {shift->[1]}
+sub name($) {shift->[2]}
+sub is_running($) {shift->pid ne "-"}
+sub restart { my $me = shift; $me->stop; $me->refresh; $me->start; }
+sub start($) {
+	my $me = shift;
+	if ($me->is_running) { printf "%sWarning%s: service already running: %s\n", $c_yel, $c_rst, $me->name; }
+	$me->_launchctl("Starting", "start", $me->is_running, sub { $me->wait_for(sub { $me->is_running }) });
+}
+sub refresh($) {
+	my $me = shift;
+	for (split /\n/, `launchctl list`) {
+		my ($pid, $status, $name) = split /\t/;
+		next unless $name eq $me->name;
+		$me->[0] = $pid;
+		$me->[1] = $status;
+	}
+}
+sub wait_for($&;$) {
+	my ($me, $callback, $timeout) = @_;
+	$timeout //= 20;
+	$me->refresh;
+	my $time_now = time;
+	my $success;
+	while (!($success = $callback->()) && time - $time_now < $timeout) {
+		usleep(100000);
+		$me->refresh;
+	}
+	die "Reached timeout of $timeout seconds." unless $success;
+}
+sub stop($) {
+	my $me = shift;
+	if (!$me->is_running) { printf "%sWarning%s: service already stopped: %s\n", $c_yel, $c_rst, $me->name; }
+	$me->_launchctl("Stopping", "stop", !$me->is_running, sub { $me->wait_for(sub { !$me->is_running })});
+}
+sub result_warn { print "[ ${c_yel}WARN${c_rst} ]\n"; }
+sub result_ok   { print "[  ${c_grn}OK${c_rst}  ]\n"; }
+sub result_fail { print "[ ${c_red}FAIL${c_rst} ]\n"; }
+sub _launchctl($$$$&) {
+	my ($me, $prompt, $action, $warn, $callback) = @_;
+	printf "%s%-60s", $c_rst, sprintf("%s %s...", $prompt, $me->name);
+	my $result = system 'launchctl', $action, $me->name;
+	if ($result == 0) {
+		eval { $callback->() };
+		my $callback_err = $@;
+		if ($callback_err) { result_fail; print STDERR "$callback_err\n"; return 0; }
+
+		if ($warn) { result_warn }
+		else { result_ok }
+		return 1;
+	} else {
+		result_fail;
+		if ($? == -1) { print "Failed to execute launchctl: $!\n"; }
+		elsif ($? & 127) { printf "Launchctl was killed by signal %d\n", $? & 127; }
+		else { printf "Launchctl failed with exit code %d\n", $? >> 8; }
+		return 0;
+	}
+}
