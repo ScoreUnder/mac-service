@@ -50,3 +50,13 @@ mac-service ssh-agent stop
 ```
 
 ![Screenshot](screenshots/stop.png?raw=true)
+
+### Service info
+
+Show a service's status:
+
+```bash
+mac-servce ssh-agent status
+```
+
+![Screenshot](screenshots/status.png)
