@@ -15,11 +15,15 @@ List non-Apple services:
 mac-service list
 ```
 
+![Screenshot](screenshots/list.png?raw=true)
+
 List all services:
 
 ```bash
 mac-service list-all
 ```
+
+![Screenshot](screenshots/list-all.png?raw=true)
 
 ### Controlling services
 
@@ -29,14 +33,20 @@ Start a service:
 mac-service ssh-agent start
 ```
 
+![Screenshot](screenshots/start.png?raw=true)
+
 Restart a service:
 
 ```bash
 mac-service ssh-agent restart
 ```
 
+![Screenshot](screenshots/restart.png?raw=true)
+
 Stop a service:
 
 ```bash
 mac-service ssh-agent stop
 ```
+
+![Screenshot](screenshots/stop.png?raw=true)
