@@ -39,7 +39,7 @@ sub launch_list() {
 	\%ret;
 }
 
-sub tabulate(@) {
+sub tabulate {
 	# Get max length of each column
 	my ($first, @rest) = @_;
 	my @lens = map length, @$first;
@@ -62,7 +62,7 @@ sub tabulate(@) {
 	}
 }
 
-sub print_services(\%;$) {
+sub print_services {
 	my $header = ["Short name", "PID", "Last exit code", "Real name"];
 	my @process_list;
 	my ($services, $list_short) = @_;
@@ -74,7 +74,7 @@ sub print_services(\%;$) {
 	tabulate $header, sort { fc($a->[0]) cmp fc($b->[0]) } @process_list;
 }
 
-sub find_service(\%$) {
+sub find_service {
 	my ($services, $service) = @_;
 	if (exists $services->{$service}) {
 		return $services->{$service};
@@ -88,7 +88,7 @@ sub find_service(\%$) {
 
 my $services = launch_list;
 if (scalar @ARGV == 1 && $ARGV[0] ~~ /^list(-all)?$/) {
-	print_services %$services, !$1;
+	print_services $services, !$1;
 	exit 0;
 }
 
@@ -99,7 +99,7 @@ Remember you'll get different results if you run as root.);
 }
 
 my ($service_name, $action) = @ARGV;
-my $service = find_service(%$services, $service_name);
+my $service = find_service($services, $service_name);
 $service_name = $service->name;  # Get the canonical name
 
 if ($action eq "start") {
@@ -122,18 +122,18 @@ if ($action eq "start") {
 
 package LaunchdService;
 use Time::HiRes qw/usleep time/;
-sub new($$$$) {my $class = shift; bless [@_], $class}
-sub pid($) {shift->[0]}
-sub status($) {shift->[1]}
-sub name($) {shift->[2]}
-sub is_running($) {shift->pid ne "-"}
+sub new {my $class = shift; bless [@_], $class}
+sub pid {shift->[0]}
+sub status {shift->[1]}
+sub name {shift->[2]}
+sub is_running {shift->pid ne "-"}
 sub restart { my $me = shift; $me->stop; $me->refresh; $me->start; }
-sub start($) {
+sub start {
 	my $me = shift;
 	if ($me->is_running) { printf "%sWarning%s: service already running: %s\n", $c_yel, $c_rst, $me->name; }
 	$me->_launchctl("Starting", "start", $me->is_running, sub { $me->wait_for(sub { $me->is_running }) });
 }
-sub refresh($) {
+sub refresh {
 	my $me = shift;
 	for (split /\n/, `launchctl list`) {
 		my ($pid, $status, $name) = split /\t/;
@@ -142,7 +142,7 @@ sub refresh($) {
 		$me->[1] = $status;
 	}
 }
-sub wait_for($&;$) {
+sub wait_for {
 	my ($me, $callback, $timeout) = @_;
 	$timeout //= 20;
 	$me->refresh;
@@ -154,7 +154,7 @@ sub wait_for($&;$) {
 	}
 	die "Reached timeout of $timeout seconds." unless $success;
 }
-sub stop($) {
+sub stop {
 	my $me = shift;
 	if (!$me->is_running) { printf "%sWarning%s: service already stopped: %s\n", $c_yel, $c_rst, $me->name; }
 	$me->_launchctl("Stopping", "stop", !$me->is_running, sub { $me->wait_for(sub { !$me->is_running })});
@@ -162,7 +162,7 @@ sub stop($) {
 sub result_warn { print "[ ${c_yel}WARN${c_rst} ]\n"; }
 sub result_ok   { print "[  ${c_grn}OK${c_rst}  ]\n"; }
 sub result_fail { print "[ ${c_red}FAIL${c_rst} ]\n"; }
-sub _launchctl($$$$&) {
+sub _launchctl {
 	my ($me, $prompt, $action, $warn, $callback) = @_;
 	printf "%s%-60s", $c_rst, sprintf("%s %s...", $prompt, $me->name);
 	my $result = system 'launchctl', $action, $me->name;
