@@ -74,12 +74,6 @@ sub print_services(\%;$) {
 	tabulate $header, sort { fc($a->[0]) cmp fc($b->[0]) } @process_list;
 }
 
-sub shellquote($) {
-	$_ = $_[0];
-	s/'/'\\''/g;
-	$_ = "'$_'";
-}
-
 sub find_service(\%$) {
 	my ($services, $service) = @_;
 	if (exists $services->{$service}) {
