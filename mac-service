@@ -99,6 +99,17 @@ Remember you'll get different results if you run as root.);
 }
 
 my ($service_name, $action) = @ARGV;
+
+if ($action eq 'completions') {
+	my $match = qr(^\Q$service_name\E);
+	local $\ = "\n";
+	while (my ($shortname, $service) = each %$services) {
+		print $shortname if $shortname =~ $match;
+		print $service->name if $service->name =~ $match;
+	}
+	exit 0;
+}
+
 my $service = find_service($services, $service_name);
 $service_name = $service->name;  # Get the canonical name
 

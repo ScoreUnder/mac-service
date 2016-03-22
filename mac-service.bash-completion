@@ -1,0 +1,12 @@
+_mac-service() {
+    local IFS=$'\n'  # Split arrays only by newline
+    local old_flags="$-"
+    set -f           # Do not perform pathname expansion on the split results
+    case $COMP_CWORD in
+        (1) COMPREPLY=($(eval "$1"' "$2" completions') $(IFS=' ' compgen -W 'list list-all' -- "$2"));;
+        (2) COMPREPLY=($(IFS=' ' compgen -W 'start stop restart status completions' -- "$2"));;
+        (*) COMPREPLY=();;
+    esac
+    case $old_flags in (*f*);; (*) set +f;; esac
+}
+complete -F _mac-service mac-service
