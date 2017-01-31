@@ -56,7 +56,7 @@ mac-service ssh-agent stop
 Show a service's status:
 
 ```bash
-mac-servce ssh-agent status
+mac-service ssh-agent status
 ```
 
 ![Screenshot](screenshots/status.png)
