@@ -188,7 +188,7 @@ sub stop {
 	my $me = shift;
 	if (!$me->is_running) { printf "%sWarning%s: service already stopped: %s\n", $c_yel, $c_rst, $me->name; }
 	my $orig_pid = $me->pid;
-	$me->_launchctl("Stopping", "stop", !$me->is_running, sub { $me->wait_for(sub { $me->pid ne $orig_pid })});
+	$me->_launchctl("Stopping", "stop", !$me->is_running, sub { $me->wait_for(sub { !$me->is_running || $me->pid ne $orig_pid })});
 	print_warning "service restarted immediately: ".$me->name if $me->is_running;
 }
 sub result_warn { print "[ ${c_yel}WARN${c_rst} ]\n"; }
