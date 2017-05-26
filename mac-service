@@ -17,6 +17,9 @@ my $header_color = "\033[40;1m";
 my $odd_rows_color = "\033[48;5;235m";
 my $even_rows_color = "\033[40m";
 
+# Common suffixes for service names (these just obscure the real name of the service)
+my $suffixes_regex = qr{ xpc | agent | reloaded | user | system | daemon }xi;
+
 sub launch_list() {
 	local $.;
 	my %ret;
@@ -26,7 +29,7 @@ sub launch_list() {
 		chomp;
 		my ($pid, $status, $name) = split /\t/, $_, 3;
 		my $shortname = $name;
-		() while $shortname =~ s/\.(xpc|agent|user)*$//i;  # Tons of things end in xpc, agent, or user
+		() while $shortname =~ s/\.$suffixes_regex*$//i;
 		$shortname =~ s/\.([0-9A-Fa-f\-]+)$/_$1/;  # Convert numeric/hex suffixes
 		$shortname =~ s/^.*\.//;  # Strip to the last field
 		if (exists $ret{$shortname}) {
