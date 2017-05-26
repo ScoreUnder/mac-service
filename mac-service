@@ -151,7 +151,7 @@ sub pid {shift->[0]}
 sub status {shift->[1]}
 sub name {shift->[2]}
 sub is_running {shift->pid ne "-"}
-sub restart { my $me = shift; $me->stop; $me->refresh; $me->start; }
+sub restart { my $me = shift; $me->stop; usleep(1000000); $me->refresh; $me->start; }
 sub start {
 	my $me = shift;
 	if ($me->is_running) { printf "%sWarning%s: service already running: %s\n", $c_yel, $c_rst, $me->name; }
