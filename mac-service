@@ -32,13 +32,13 @@ sub launch_list() {
 		() while $shortname =~ s/\.$suffixes_regex*$//i;
 		$shortname =~ s/\.([0-9A-Fa-f\-]+)$/_$1/;  # Convert numeric/hex suffixes
 		$shortname =~ s/^.*\.//;  # Strip to the last field
-		if (exists $ret{$shortname}) {
+		if (exists $ret{fc $shortname}) {
 			$shortname .= '_2';
-			while (exists $ret{$shortname}) {
+			while (exists $ret{fc $shortname}) {
 				$shortname =~ s/_(\d+)$/"_".($1+1)/e;
 			}
 		}
-		$ret{$shortname} = LaunchdService->new($pid, $status, $name);
+		$ret{fc $shortname} = LaunchdService->new($pid, $status, $name, $shortname);
 	}
 	\%ret;
 }
@@ -91,8 +91,8 @@ sub print_services {
 
 sub find_service {
 	my ($services, $service) = @_;
-	if (exists $services->{$service}) {
-		return $services->{$service};
+	if (exists $services->{fc $service}) {
+		return $services->{fc $service};
 	}
 	my @candidates = grep {$_->name eq $service} values %$services;
 	if (@candidates) {
@@ -120,8 +120,9 @@ if ($action eq 'completions') {
 	my $match = qr(^\Q$service_name\E);
 	local $\ = "\n";
 	while (my ($shortname, $service) = each %$services) {
-		print $shortname if $shortname =~ $match;
-		print $service->name if $service->name =~ $match;
+		for ($service->shortname, $service->name) {
+			print if $_ =~ $match;
+		}
 	}
 	exit 0;
 }
