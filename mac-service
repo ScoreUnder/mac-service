@@ -107,7 +107,8 @@ if (scalar @ARGV == 1 && $ARGV[0] ~~ /^list(-all)?$/) {
 if (scalar @ARGV != 2) {
 	die q(Please pass a service name and an action (start, stop, restart, status).
 Alternatively, invoke with "list" or "list-all" to show available services.
-Remember you'll get different results if you run as root.);
+Remember you'll get different results if you run as root.
+);
 }
 
 my ($service_name, $action) = @ARGV;
