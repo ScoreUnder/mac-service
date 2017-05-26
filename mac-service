@@ -52,11 +52,11 @@ sub tabulate {
 	@lens[0 .. $#lens - 1] = map { $_ + 4 } @lens[0 .. $#lens - 1];
 	# Print, tabulated, with those lengths
 	my $odd = 1;
-	for my $row (@_) {
+	for my $row ($first, @rest) {
 		print $odd ? $odd_rows_color : $even_rows_color;
 		$odd = !$odd;
 		for my $i (0..$#lens) {
-			printf "%-$lens[$i]s", $row->[$i];
+			printf "%-*s", $lens[$i], $row->[$i];
 		}
 		print "$c_rst\n";
 	}
