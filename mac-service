@@ -153,11 +153,13 @@ sub new {my $class = shift; bless [@_], $class}
 sub pid {shift->[0]}
 sub status {shift->[1]}
 sub name {shift->[2]}
+sub shortname {shift->[3]}
 sub is_running {shift->pid ne "-"}
 sub restart { my $me = shift; $me->stop; usleep(1000000); $me->refresh; $me->start; }
+sub print_warning { printf "%sWarning%s: %s\n", $c_yel, $c_rst, join ' ', @_; }
 sub start {
 	my $me = shift;
-	if ($me->is_running) { printf "%sWarning%s: service already running: %s\n", $c_yel, $c_rst, $me->name; }
+	if ($me->is_running) { print_warning "service already running: ".$me->name; }
 	$me->_launchctl("Starting", "start", $me->is_running, sub { $me->wait_for(sub { $me->is_running }) });
 }
 sub refresh {
@@ -184,7 +186,9 @@ sub wait_for {
 sub stop {
 	my $me = shift;
 	if (!$me->is_running) { printf "%sWarning%s: service already stopped: %s\n", $c_yel, $c_rst, $me->name; }
-	$me->_launchctl("Stopping", "stop", !$me->is_running, sub { $me->wait_for(sub { !$me->is_running })});
+	my $orig_pid = $me->pid;
+	$me->_launchctl("Stopping", "stop", !$me->is_running, sub { $me->wait_for(sub { $me->pid ne $orig_pid })});
+	print_warning "service restarted immediately: ".$me->name if $me->is_running;
 }
 sub result_warn { print "[ ${c_yel}WARN${c_rst} ]\n"; }
 sub result_ok   { print "[  ${c_grn}OK${c_rst}  ]\n"; }
