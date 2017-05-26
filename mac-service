@@ -13,6 +13,7 @@ my $c_red = "\033[91m";
 my $c_grn = "\033[92m";
 my $c_yel = "\033[93m";
 
+my $header_color = "\033[40;1m";
 my $odd_rows_color = "\033[48;5;235m";
 my $even_rows_color = "\033[40m";
 
@@ -39,9 +40,9 @@ sub launch_list() {
 	\%ret;
 }
 
-sub tabulate {
+sub tabulate(&@) {
 	# Get max length of each column
-	my ($first, @rest) = @_;
+	my ($format, $first, @rest) = @_;
 	my @lens = map length, @$first;
 	for my $row (@rest) {
 		for my $i (0..$#lens) {
@@ -51,14 +52,16 @@ sub tabulate {
 	# Offset those lengths by 4, except the last
 	@lens[0 .. $#lens - 1] = map { $_ + 4 } @lens[0 .. $#lens - 1];
 	# Print, tabulated, with those lengths
-	my $odd = 1;
+	my $row_num = 0;
 	for my $row ($first, @rest) {
-		print $odd ? $odd_rows_color : $even_rows_color;
-		$odd = !$odd;
-		for my $i (0..$#lens) {
-			printf "%-*s", $lens[$i], $row->[$i];
+		for my $col_num (0..$#lens) {
+			print $format->(
+				sprintf("%-*s", $lens[$col_num], $row->[$col_num]),
+				$row_num, $col_num,
+			);
 		}
 		print "$c_rst\n";
+		$row_num++;
 	}
 }
 
@@ -71,7 +74,16 @@ sub print_services {
 		my $short_formatted = $short;
 		push @process_list, [$short, $proc->pid, $proc->status, $proc->name];
 	}
-	tabulate $header, sort { fc($a->[0]) cmp fc($b->[0]) } @process_list;
+	tabulate {
+		my ($s, $row, $col) = @_;
+		# Colour header separately
+		if ($row == 0) { $header_color.$s }
+		# Do not colour other columns (let the colour carry over from the previous)
+		elsif ($col != 0) { $s }
+		# Odd rows get odd colour, even rows get even colour
+		elsif ($row & 1) { $odd_rows_color.$s }
+		else { $even_rows_color.$s }
+	} $header, sort { fc($a->[0]) cmp fc($b->[0]) } @process_list;
 }
 
 sub find_service {
