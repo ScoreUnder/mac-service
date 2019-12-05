@@ -1,4 +1,4 @@
-_mac-service() {
+_mac_service() {
     local IFS=$'\n'  # Split arrays only by newline
     local old_flags="$-"
     set -f           # Do not perform pathname expansion on the split results
@@ -9,4 +9,4 @@ _mac-service() {
     esac
     case $old_flags in (*f*);; (*) set +f;; esac
 }
-complete -F _mac-service mac-service
+complete -F _mac_service mac-service
